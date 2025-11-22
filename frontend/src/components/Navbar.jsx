@@ -11,28 +11,28 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-md">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold text-primary">
+    <nav className="bg-white border-b border-gray-300">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+        <Link to="/" className="text-2xl font-bold text-gray-900">
           🏘️ CommunityHub
         </Link>
 
         <div className="flex gap-6 items-center">
-          <Link to="/" className="text-gray-700 hover:text-primary">
+          <Link to="/" className="text-gray-700 hover:text-gray-900 transition font-medium">
             Feed
           </Link>
-          <Link to="/communities" className="text-gray-700 hover:text-primary">
+          <Link to="/communities" className="text-gray-700 hover:text-gray-900 transition font-medium">
             Communities
           </Link>
           {user && (
             <>
-              <Link to="/profile" className="text-gray-700 hover:text-primary">
+              <Link to="/profile" className="text-gray-700 hover:text-gray-900 transition font-medium">
                 Profile
               </Link>
-              <span className="text-gray-600">{user.username}</span>
+              <span className="text-gray-600 text-sm">@{user.username}</span>
               <button
                 onClick={handleLogout}
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                className="bg-gray-200 text-gray-900 px-4 py-2 rounded hover:bg-gray-300 transition font-medium text-sm"
               >
                 Logout
               </button>

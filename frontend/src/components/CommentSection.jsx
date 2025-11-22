@@ -4,16 +4,15 @@ import { useAuth } from '../hooks/useAuth';
 import { commentAPI } from '../api/endpoints';
 import CommentItem from './CommentItem';
 
-const CommentSection = ({ postId }) => {
+const CommentSection = ({ postId, communityOwnerId }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
 
+  // Load comments by default
   const { data: commentsData, isLoading } = useQuery({
     queryKey: ['comments', postId],
-    queryFn: () => commentAPI.getByPost(postId),
-    enabled: isOpen
+    queryFn: () => commentAPI.getByPost(postId)
   });
 
   const createCommentMutation = useMutation({
@@ -38,60 +37,46 @@ const CommentSection = ({ postId }) => {
   const comments = commentsData?.data?.comments || [];
 
   return (
-    <div className="mt-4 border-t pt-4">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-blue-500 hover:text-blue-600 font-semibold text-sm"
-      >
-        {isOpen ? '▼ Hide' : '▶ Show'} Comments ({comments.length})
-      </button>
+    <div className="px-4 py-3 border-t border-gray-200">
+      {/* Comments List */}
+      <div className="space-y-2 mb-3 max-h-96 overflow-y-auto">
+        {isLoading ? (
+          <p className="text-gray-400 text-xs">Loading...</p>
+        ) : comments.length === 0 ? (
+          <p className="text-gray-400 text-xs italic">No comments</p>
+        ) : (
+          comments.map(comment => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              postId={postId}
+              communityOwnerId={communityOwnerId}
+              onRefresh={() => queryClient.invalidateQueries(['comments', postId])}
+            />
+          ))
+        )}
+      </div>
 
-      {isOpen && (
-        <div className="mt-4 space-y-4">
-          {/* Comment Input */}
-          <form onSubmit={handleCommentSubmit} className="flex gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
-            </div>
-            <div className="flex-1">
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
-                rows="2"
-              />
-              <div className="flex justify-end mt-2">
-                <button
-                  type="submit"
-                  disabled={createCommentMutation.isPending || !commentText.trim()}
-                  className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm hover:bg-blue-600 disabled:opacity-50"
-                >
-                  {createCommentMutation.isPending ? 'Posting...' : 'Post'}
-                </button>
-              </div>
-            </div>
-          </form>
-
-          {/* Comments List */}
-          <div className="space-y-3 mt-4">
-            {isLoading ? (
-              <p className="text-gray-500 text-sm">Loading comments...</p>
-            ) : comments.length === 0 ? (
-              <p className="text-gray-500 text-sm">No comments yet. Be the first to comment!</p>
-            ) : (
-              comments.map(comment => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  postId={postId}
-                  onRefresh={() => queryClient.invalidateQueries(['comments', postId])}
-                />
-              ))
-            )}
-          </div>
+      {/* Comment Input */}
+      <form onSubmit={handleCommentSubmit} className="flex items-center gap-2 border-t border-gray-200 pt-2">
+        <div className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+          {user?.firstName?.[0]}{user?.lastName?.[0]}
         </div>
-      )}
+        <input
+          type="text"
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          placeholder="Add a comment..."
+          className="flex-1 text-sm bg-transparent focus:outline-none placeholder-gray-400 py-1"
+        />
+        <button
+          type="submit"
+          disabled={createCommentMutation.isPending || !commentText.trim()}
+          className="text-gray-600 hover:text-gray-900 disabled:text-gray-300 text-sm font-medium transition"
+        >
+          Post
+        </button>
+      </form>
     </div>
   );
 };

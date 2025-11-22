@@ -97,8 +97,21 @@ export const deleteComment = async (req, res, next) => {
       return res.status(404).json({ error: 'Comment not found' });
     }
 
-    if (comment.authorId !== req.userId) {
-      return res.status(403).json({ error: 'Can only delete your own comments' });
+    // Get the post to check community ownership
+    const post = await PostModel.findById(comment.postId);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if user is the comment author or community owner
+    const { CommunityModel } = await import('../models/index.js');
+    const community = await CommunityModel.findById(post.communityId);
+    
+    const isCommentAuthor = comment.authorId === req.userId;
+    const isCommunityOwner = community && community.createdBy === req.userId;
+
+    if (!isCommentAuthor && !isCommunityOwner) {
+      return res.status(403).json({ error: 'You can only delete your own comments or you must be the community owner' });
     }
 
     await CommentModel.delete(req.params.commentId);
