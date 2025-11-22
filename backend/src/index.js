@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import sequelize from './config/database.js';
+import { initializeMinIO } from './config/minio.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import communityRoutes from './routes/community.js';
@@ -19,6 +20,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -71,8 +73,17 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Database sync and server start
-sequelize.sync({ alter: true }).then(() => {
+sequelize.sync({ alter: true }).then(async () => {
   console.log('✅ Database synchronized');
+  
+  // Initialize MinIO
+  try {
+    await initializeMinIO();
+  } catch (err) {
+    console.warn('⚠️  MinIO initialization warning:', err.message);
+    // Don't exit, just warn
+  }
+  
   app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
     console.log(`📡 API at http://localhost:${PORT}/api`);

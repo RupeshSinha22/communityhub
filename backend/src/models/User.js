@@ -41,6 +41,10 @@ const User = sequelize.define('User', {
     type: DataTypes.TEXT,
     defaultValue: '',
   },
+  profilePic: {
+    type: DataTypes.STRING,
+    defaultValue: null,
+  },
 }, {
   hooks: {
     beforeCreate: async (user) => {

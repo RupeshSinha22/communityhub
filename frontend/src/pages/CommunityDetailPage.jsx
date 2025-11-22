@@ -72,25 +72,25 @@ const CommunityDetailPage = () => {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Community Header */}
-      <div className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-8 mb-8 border border-blue-100">
+      <div className="bg-white border border-gray-300 p-8 mb-8">
         <div className="flex justify-between items-start mb-6">
           <div className="flex-1">
             <h1 className="text-5xl font-bold mb-3 text-gray-900">{community.name}</h1>
             <p className="text-gray-700 text-lg mb-6 leading-relaxed">{community.description}</p>
             <div className="flex flex-wrap gap-3 items-center">
-              <span className="bg-linear-to-r from-green-100 to-emerald-100 text-emerald-800 text-xs font-bold px-4 py-2 rounded-full border-2 border-emerald-300 shadow-sm uppercase">
+              <span className="bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded">
                 {community.category}
               </span>
-              <span className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold">
+              <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm">
                 👥 {community.members?.length || 0} members
               </span>
               {community.isPrivate && (
-                <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-2 rounded-lg">🔒 Private</span>
+                <span className="bg-gray-200 text-gray-800 text-xs font-semibold px-3 py-1 rounded">🔒 Private</span>
               )}
             </div>
           </div>
           {isCreator && (
-            <div className="bg-linear-to-br from-gray-100 to-gray-200 px-4 py-3 rounded-lg border-2 border-gray-300 font-semibold">
+            <div className="bg-gray-200 px-4 py-2 rounded font-semibold text-gray-900 text-sm">
               ✓ Creator
             </div>
           )}
@@ -103,7 +103,7 @@ const CommunityDetailPage = () => {
           <button
             onClick={() => joinMutation.mutate()}
             disabled={joinMutation.isPending}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-semibold text-lg transition"
+            className="w-full bg-gray-800 text-white px-6 py-3 rounded hover:bg-gray-900 disabled:bg-gray-400 font-semibold text-lg transition"
           >
             {joinMutation.isPending ? 'Joining...' : '✨ Join Community'}
           </button>
@@ -112,20 +112,20 @@ const CommunityDetailPage = () => {
 
       {/* Create Post Section */}
       {(isMember || isCreator) && (
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
+        <div className="bg-white border border-gray-300 p-6 mb-8">
           <h3 className="text-xl font-bold mb-4 text-gray-900">✍️ Share Your Thoughts</h3>
           <textarea
             value={postContent}
             onChange={(e) => setPostContent(e.target.value)}
             placeholder="What's on your mind? Share something interesting..."
-            className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            className="w-full border border-gray-300 rounded px-4 py-3 mb-4 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 resize-none text-gray-900"
             rows="4"
           />
           <div className="flex gap-3">
             <button
               onClick={() => createPostMutation.mutate(postContent)}
               disabled={!postContent.trim() || createPostMutation.isPending}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-semibold transition"
+              className="bg-gray-800 text-white px-6 py-2 rounded hover:bg-gray-900 disabled:bg-gray-300 font-semibold transition"
             >
               {createPostMutation.isPending ? 'Posting...' : 'Post'}
             </button>
@@ -134,8 +134,8 @@ const CommunityDetailPage = () => {
       )}
 
       {/* Posts Section */}
-      <div className="bg-white rounded-xl shadow-md p-8 border border-gray-200 mb-8">
-        <h2 className="text-3xl font-bold mb-8 text-gray-900">💬 Posts</h2>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold mb-6 text-gray-900">💬 Posts</h2>
         
         {postsLoading ? (
           <div className="text-center py-12 text-gray-500">
@@ -143,12 +143,9 @@ const CommunityDetailPage = () => {
             <p className="mt-2">Loading posts...</p>
           </div>
         ) : posts.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-center py-12 bg-gray-50 border border-gray-300">
             <p className="text-xl text-gray-600 mb-2">📝 No posts yet</p>
-            {isCreator && (
-              <p className="text-gray-500">Be the first to share something! 🚀</p>
-            )}
-            {isMember && !isCreator && (
+            {(isCreator || isMember) && (
               <p className="text-gray-500">Be the first to share something! 🚀</p>
             )}
             {!isMember && !isCreator && (
@@ -170,7 +167,7 @@ const CommunityDetailPage = () => {
           <button
             onClick={() => leaveMutation.mutate()}
             disabled={leaveMutation.isPending}
-            className="w-full bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 disabled:bg-gray-400 font-semibold transition"
+            className="w-full bg-gray-400 text-gray-900 px-6 py-3 rounded hover:bg-gray-500 disabled:bg-gray-300 font-semibold transition"
           >
             {leaveMutation.isPending ? 'Leaving...' : '👋 Leave Community'}
           </button>

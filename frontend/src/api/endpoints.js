@@ -9,6 +9,13 @@ export const authAPI = {
 export const userAPI = {
   getProfile: (userId) => apiClient.get(`/users/profile/${userId}`),
   updateProfile: (data) => apiClient.patch('/users/profile', data),
+  uploadProfilePic: (file) => {
+    const formData = new FormData();
+    formData.append('profilePic', file);
+    return apiClient.post('/users/profile/upload-pic', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   getAllUsers: () => apiClient.get('/users'),
 };
 
