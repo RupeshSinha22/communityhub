@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
 import CommunityPage from './pages/CommunityPage'
+import CommunityDetailPage from './pages/CommunityDetailPage'
 import CreateCommunityPage from './pages/CreateCommunityPage'
 import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -58,7 +59,7 @@ function App() {
                 path="/communities/:id"
                 element={
                   <ProtectedRoute>
-                    <CommunityPage />
+                    <CommunityDetailPage />
                   </ProtectedRoute>
                 }
               />

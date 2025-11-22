@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { communityAPI } from '../api/endpoints';
 
 const CreateCommunityPage = () => {
@@ -11,11 +11,15 @@ const CreateCommunityPage = () => {
   });
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: communityAPI.create,
     onSuccess: () => {
-      navigate('/communities');
+      // Invalidate both communities and feed queries
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      navigate('/');
     },
     onError: (err) => {
       setError(err.response?.data?.error || 'Failed to create community');

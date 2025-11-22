@@ -6,23 +6,30 @@ export const createPost = async (req, res, next) => {
     const { error, value } = createPostSchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
-    const community = CommunityModel.findById(value.communityId);
+    const community = await CommunityModel.findById(value.communityId);
     if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
 
-    if (!community.members.includes(req.userId)) {
+    const userIdStr = String(req.userId);
+    const isMember = community.members?.some(m => String(m) === userIdStr);
+    const isCreator = String(community.createdBy) === userIdStr;
+    
+    if (!isMember && !isCreator) {
       return res.status(403).json({ error: 'Not a member of this community' });
     }
 
-    const post = PostModel.create({
+    const post = await PostModel.create({
       ...value,
       authorId: req.userId
     });
 
+    // Fetch the created post with all associations
+    const fullPost = await PostModel.findById(post.id);
+
     res.status(201).json({
       message: 'Post created successfully',
-      post
+      post: fullPost
     });
   } catch (error) {
     next(error);
@@ -31,24 +38,12 @@ export const createPost = async (req, res, next) => {
 
 export const getPost = async (req, res, next) => {
   try {
-    const post = PostModel.findById(req.params.postId);
+    const post = await PostModel.findById(req.params.postId);
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const author = UserModel.findById(post.authorId);
-    res.json({
-      post: {
-        ...post,
-        author: {
-          id: author.id,
-          firstName: author.firstName,
-          lastName: author.lastName,
-          username: author.username,
-          avatar: author.avatar
-        }
-      }
-    });
+    res.json({ post });
   } catch (error) {
     next(error);
   }
@@ -56,23 +51,8 @@ export const getPost = async (req, res, next) => {
 
 export const getCommunityPosts = async (req, res, next) => {
   try {
-    const posts = PostModel.findByCommunity(req.params.communityId);
-    
-    const enrichedPosts = posts.map(post => {
-      const author = UserModel.findById(post.authorId);
-      return {
-        ...post,
-        author: {
-          id: author.id,
-          firstName: author.firstName,
-          lastName: author.lastName,
-          username: author.username,
-          avatar: author.avatar
-        }
-      };
-    });
-
-    res.json({ posts: enrichedPosts });
+    const posts = await PostModel.findByCommunity(req.params.communityId);
+    res.json({ posts });
   } catch (error) {
     next(error);
   }
@@ -80,28 +60,33 @@ export const getCommunityPosts = async (req, res, next) => {
 
 export const getFeedPosts = async (req, res, next) => {
   try {
-    const userCommunities = CommunityModel.findByUserId(req.userId);
-    const communityIds = userCommunities.map(c => c.id);
+    // Get the user
+    const user = await UserModel.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    const posts = PostModel.findAll().filter(post => 
+    // Get communities the user is a member of (via many-to-many junction table)
+    const joinedCommunities = await user.getJoinedCommunities();
+    const joinedCommunityIds = joinedCommunities.map(c => c.id);
+
+    // Get communities the user created
+    const createdCommunities = await CommunityModel.findByUserId(req.userId);
+    const createdCommunityIds = createdCommunities.map(c => c.id);
+
+    // Combine both lists (remove duplicates)
+    const communityIds = [...new Set([...joinedCommunityIds, ...createdCommunityIds])];
+
+    if (communityIds.length === 0) {
+      return res.json({ posts: [] });
+    }
+
+    const allPosts = await PostModel.findAll();
+    const posts = allPosts.filter(post => 
       communityIds.includes(post.communityId)
     );
 
-    const enrichedPosts = posts.map(post => {
-      const author = UserModel.findById(post.authorId);
-      return {
-        ...post,
-        author: {
-          id: author.id,
-          firstName: author.firstName,
-          lastName: author.lastName,
-          username: author.username,
-          avatar: author.avatar
-        }
-      };
-    });
-
-    res.json({ posts: enrichedPosts });
+    res.json({ posts });
   } catch (error) {
     next(error);
   }
@@ -109,7 +94,7 @@ export const getFeedPosts = async (req, res, next) => {
 
 export const updatePost = async (req, res, next) => {
   try {
-    const post = PostModel.findById(req.params.postId);
+    const post = await PostModel.findById(req.params.postId);
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
@@ -118,11 +103,12 @@ export const updatePost = async (req, res, next) => {
       return res.status(403).json({ error: 'Can only edit your own posts' });
     }
 
-    const updated = PostModel.update(req.params.postId, {
+    await PostModel.update(req.params.postId, {
       content: req.body.content,
       updatedAt: new Date().toISOString()
     });
 
+    const updated = await PostModel.findById(req.params.postId);
     res.json({
       message: 'Post updated successfully',
       post: updated
@@ -134,7 +120,7 @@ export const updatePost = async (req, res, next) => {
 
 export const deletePost = async (req, res, next) => {
   try {
-    const post = PostModel.findById(req.params.postId);
+    const post = await PostModel.findById(req.params.postId);
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
@@ -143,7 +129,7 @@ export const deletePost = async (req, res, next) => {
       return res.status(403).json({ error: 'Can only delete your own posts' });
     }
 
-    PostModel.delete(req.params.postId);
+    await PostModel.delete(req.params.postId);
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     next(error);
@@ -152,13 +138,14 @@ export const deletePost = async (req, res, next) => {
 
 export const likePost = async (req, res, next) => {
   try {
-    const post = PostModel.findById(req.params.postId);
+    const post = await PostModel.findById(req.params.postId);
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    PostModel.addLike(req.params.postId, req.userId);
-    res.json({ message: 'Post liked successfully' });
+    await PostModel.addLike(req.params.postId, req.userId);
+    const updated = await PostModel.findById(req.params.postId);
+    res.json({ message: 'Post liked successfully', post: updated });
   } catch (error) {
     next(error);
   }
@@ -166,13 +153,14 @@ export const likePost = async (req, res, next) => {
 
 export const unlikePost = async (req, res, next) => {
   try {
-    const post = PostModel.findById(req.params.postId);
+    const post = await PostModel.findById(req.params.postId);
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    PostModel.removeLike(req.params.postId, req.userId);
-    res.json({ message: 'Post unliked successfully' });
+    await PostModel.removeLike(req.params.postId, req.userId);
+    const updated = await PostModel.findById(req.params.postId);
+    res.json({ message: 'Post unliked successfully', post: updated });
   } catch (error) {
     next(error);
   }

@@ -2,11 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { sequelize } from './models/index.js';
+import sequelize from './config/database.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import communityRoutes from './routes/community.js';
 import postRoutes from './routes/post.js';
+import commentRoutes from './routes/comment.js';
 import errorHandler from './middlewares/errorHandler.js';
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/comments', commentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

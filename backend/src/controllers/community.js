@@ -8,13 +8,18 @@ export const createCommunity = async (req, res, next) => {
 
     const community = await CommunityModel.create({
       ...value,
-      createdBy: req.userId,
-      moderators: [req.userId]
+      createdBy: req.userId
     });
+
+    // Add creator as a member using the static method
+    await CommunityModel.addMember(community.id, req.userId);
+
+    // Fetch the community with all associations
+    const savedCommunity = await CommunityModel.findById(community.id);
 
     res.status(201).json({
       message: 'Community created successfully',
-      community
+      community: savedCommunity
     });
   } catch (error) {
     next(error);
@@ -23,7 +28,7 @@ export const createCommunity = async (req, res, next) => {
 
 export const getCommunity = async (req, res, next) => {
   try {
-    const community = CommunityModel.findById(req.params.communityId);
+    const community = await CommunityModel.findById(req.params.communityId);
     if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
@@ -36,7 +41,7 @@ export const getCommunity = async (req, res, next) => {
 
 export const getAllCommunities = async (req, res, next) => {
   try {
-    const communities = CommunityModel.findAll();
+    const communities = await CommunityModel.findAll();
     res.json({ communities });
   } catch (error) {
     next(error);
@@ -45,7 +50,7 @@ export const getAllCommunities = async (req, res, next) => {
 
 export const getMyCommunities = async (req, res, next) => {
   try {
-    const communities = CommunityModel.findByUserId(req.userId);
+    const communities = await CommunityModel.findByUserId(req.userId);
     res.json({ communities });
   } catch (error) {
     next(error);
@@ -54,20 +59,23 @@ export const getMyCommunities = async (req, res, next) => {
 
 export const joinCommunity = async (req, res, next) => {
   try {
-    const community = CommunityModel.findById(req.params.communityId);
+    const community = await CommunityModel.findById(req.params.communityId);
     if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
 
-    if (community.members.includes(req.userId)) {
+    const userIdStr = String(req.userId);
+    const isAlreadyMember = community.members?.some(m => String(m) === userIdStr);
+    if (isAlreadyMember) {
       return res.status(400).json({ error: 'Already a member' });
     }
 
-    CommunityModel.addMember(req.params.communityId, req.userId);
+    await CommunityModel.addMember(req.params.communityId, req.userId);
+    const updated = await CommunityModel.findById(req.params.communityId);
 
     res.json({
       message: 'Joined community successfully',
-      community
+      community: updated
     });
   } catch (error) {
     next(error);
@@ -76,12 +84,12 @@ export const joinCommunity = async (req, res, next) => {
 
 export const leaveCommunity = async (req, res, next) => {
   try {
-    const community = CommunityModel.findById(req.params.communityId);
+    const community = await CommunityModel.findById(req.params.communityId);
     if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
 
-    CommunityModel.removeMember(req.params.communityId, req.userId);
+    await CommunityModel.removeMember(req.params.communityId, req.userId);
 
     res.json({
       message: 'Left community successfully'
@@ -93,7 +101,7 @@ export const leaveCommunity = async (req, res, next) => {
 
 export const updateCommunity = async (req, res, next) => {
   try {
-    const community = CommunityModel.findById(req.params.communityId);
+    const community = await CommunityModel.findById(req.params.communityId);
     if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
@@ -102,7 +110,8 @@ export const updateCommunity = async (req, res, next) => {
       return res.status(403).json({ error: 'Only community creator can update' });
     }
 
-    const updated = CommunityModel.update(req.params.communityId, req.body);
+    await CommunityModel.update(req.params.communityId, req.body);
+    const updated = await CommunityModel.findById(req.params.communityId);
     res.json({
       message: 'Community updated successfully',
       community: updated
@@ -114,7 +123,7 @@ export const updateCommunity = async (req, res, next) => {
 
 export const deleteCommunity = async (req, res, next) => {
   try {
-    const community = CommunityModel.findById(req.params.communityId);
+    const community = await CommunityModel.findById(req.params.communityId);
     if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
@@ -123,7 +132,7 @@ export const deleteCommunity = async (req, res, next) => {
       return res.status(403).json({ error: 'Only community creator can delete' });
     }
 
-    CommunityModel.delete(req.params.communityId);
+    await CommunityModel.delete(req.params.communityId);
     res.json({ message: 'Community deleted successfully' });
   } catch (error) {
     next(error);

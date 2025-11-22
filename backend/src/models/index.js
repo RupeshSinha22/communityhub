@@ -3,12 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 import User from './User.js';
 import Community from './Community.js';
 import Post from './Post.js';
+import Comment from './Comment.js';
 
 // Initialize models
 const models = {
   User,
   Community,
   Post,
+  Comment,
 };
 
 // Define associations
@@ -21,6 +23,17 @@ Post.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
 Community.hasMany(Post, { foreignKey: 'communityId', as: 'posts' });
 Post.belongsTo(Community, { foreignKey: 'communityId', as: 'community' });
 
+// Comments associations
+User.hasMany(Comment, { foreignKey: 'authorId', as: 'comments' });
+Comment.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
+
+Post.hasMany(Comment, { foreignKey: 'postId', as: 'comments' });
+Comment.belongsTo(Post, { foreignKey: 'postId', as: 'post' });
+
+// Self-referential for comment replies
+Comment.hasMany(Comment, { foreignKey: 'parentCommentId', as: 'replies' });
+Comment.belongsTo(Comment, { foreignKey: 'parentCommentId', as: 'parentComment' });
+
 // Many-to-many: Users and Communities
 User.belongsToMany(Community, { through: 'CommunityMembers', as: 'joinedCommunities' });
 Community.belongsToMany(User, { through: 'CommunityMembers', as: 'members' });
@@ -28,6 +41,10 @@ Community.belongsToMany(User, { through: 'CommunityMembers', as: 'members' });
 // Many-to-many: Posts and Likes
 User.belongsToMany(Post, { through: 'PostLikes', as: 'likedPosts' });
 Post.belongsToMany(User, { through: 'PostLikes', as: 'likers' });
+
+// Many-to-many: Comments and Likes
+User.belongsToMany(Comment, { through: 'CommentLikes', as: 'likedComments' });
+Comment.belongsToMany(User, { through: 'CommentLikes', as: 'likers' });
 
 // Sync database
 export const syncDatabase = async () => {
@@ -55,127 +72,101 @@ export const UserModel = {
   delete: (id) => User.destroy({ where: { id } }),
 };
 
+// Helper to format community response
+const formatCommunity = (community) => {
+  if (!community) return null;
+  const data = community.toJSON ? community.toJSON() : community;
+  return {
+    ...data,
+    members: data.members?.map(m => m.id || m) || []
+  };
+};
+
 export const CommunityModel = {
-  create: (data) => {
-    const community = {
-      id: uuidv4(),
-      ...data,
-      members: [data.createdBy],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    mockCommunities.set(community.id, community);
-    return community;
-  },
-
-  findById: (id) => mockCommunities.get(id) || null,
-
-  findAll: () => Array.from(mockCommunities.values()),
-
-  findByUserId: (userId) => {
-    const communities = [];
-    for (const community of mockCommunities.values()) {
-      if (community.members.includes(userId)) {
-        communities.push(community);
-      }
-    }
-    return communities;
-  },
-
-  update: (id, data) => {
-    const community = mockCommunities.get(id);
-    if (!community) return null;
-    const updated = { ...community, ...data, updatedAt: new Date().toISOString() };
-    mockCommunities.set(id, updated);
-    return updated;
-  },
-
-  delete: (id) => mockCommunities.delete(id),
-
-  addMember: (communityId, userId) => {
-    const community = mockCommunities.get(communityId);
-    if (community && !community.members.includes(userId)) {
-      community.members.push(userId);
-      community.updatedAt = new Date().toISOString();
-    }
-    return community;
-  },
-
-  removeMember: (communityId, userId) => {
-    const community = mockCommunities.get(communityId);
+  create: (data) => Community.create(data),
+  findById: (id) => Community.findByPk(id, { include: ['members'] }).then(formatCommunity),
+  findAll: () => Community.findAll({ include: ['members'] }).then(communities => Array.isArray(communities) ? communities.map(formatCommunity) : []),
+  findByUserId: (userId) => Community.findAll({ where: { createdBy: userId }, include: ['members'] }).then(communities => Array.isArray(communities) ? communities.map(formatCommunity) : []),
+  update: (id, data) => Community.update(data, { where: { id }, returning: true }),
+  delete: (id) => Community.destroy({ where: { id } }),
+  addMember: async (communityId, userId) => {
+    const community = await Community.findByPk(communityId);
     if (community) {
-      community.members = community.members.filter(id => id !== userId);
-      community.updatedAt = new Date().toISOString();
+      await community.addMember(userId);
     }
-    return community;
+    return Community.findByPk(communityId, { include: ['members'] }).then(formatCommunity);
+  },
+  removeMember: async (communityId, userId) => {
+    const community = await Community.findByPk(communityId);
+    if (community) {
+      await community.removeMember(userId);
+    }
+    return Community.findByPk(communityId, { include: ['members'] }).then(formatCommunity);
   }
 };
 
 export const PostModel = {
-  create: (data) => {
-    const post = {
-      id: uuidv4(),
-      ...data,
-      likes: [],
-      comments: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    mockPosts.set(post.id, post);
-    return post;
-  },
-
-  findById: (id) => mockPosts.get(id) || null,
-
-  findByCommunity: (communityId) => {
-    const posts = [];
-    for (const post of mockPosts.values()) {
-      if (post.communityId === communityId) {
-        posts.push(post);
-      }
-    }
-    return posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  },
-
-  findByUser: (userId) => {
-    const posts = [];
-    for (const post of mockPosts.values()) {
-      if (post.authorId === userId) {
-        posts.push(post);
-      }
-    }
-    return posts;
-  },
-
-  findAll: () => Array.from(mockPosts.values()).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-
-  update: (id, data) => {
-    const post = mockPosts.get(id);
-    if (!post) return null;
-    const updated = { ...post, ...data, updatedAt: new Date().toISOString() };
-    mockPosts.set(id, updated);
-    return updated;
-  },
-
-  delete: (id) => mockPosts.delete(id),
-
-  addLike: (postId, userId) => {
-    const post = mockPosts.get(postId);
-    if (post && !post.likes.includes(userId)) {
-      post.likes.push(userId);
-      post.updatedAt = new Date().toISOString();
-    }
-    return post;
-  },
-
-  removeLike: (postId, userId) => {
-    const post = mockPosts.get(postId);
+  create: (data) => Post.create(data),
+  findById: (id) => Post.findByPk(id, { include: ['author', 'likers', 'community'] }),
+  findByCommunity: (communityId) => Post.findAll({ 
+    where: { communityId }, 
+    include: ['author', 'likers', 'community'],
+    order: [['createdAt', 'DESC']]
+  }),
+  findByUser: (userId) => Post.findAll({ 
+    where: { authorId: userId },
+    include: ['author', 'community']
+  }),
+  findAll: () => Post.findAll({ 
+    include: ['author', 'likers', 'community'],
+    order: [['createdAt', 'DESC']]
+  }),
+  update: (id, data) => Post.update(data, { where: { id }, returning: true }),
+  delete: (id) => Post.destroy({ where: { id } }),
+  addLike: async (postId, userId) => {
+    const post = await Post.findByPk(postId);
     if (post) {
-      post.likes = post.likes.filter(id => id !== userId);
-      post.updatedAt = new Date().toISOString();
+      await post.addLiker(userId);
     }
-    return post;
+    return Post.findByPk(postId, { include: ['author', 'likers', 'community'] });
+  },
+  removeLike: async (postId, userId) => {
+    const post = await Post.findByPk(postId);
+    if (post) {
+      await post.removeLiker(userId);
+    }
+    return Post.findByPk(postId, { include: ['author', 'likers', 'community'] });
   }
 };
 
-export { User, Community, Post, sequelize };
+export const CommentModel = {
+  create: (data) => Comment.create(data),
+  findById: (id) => Comment.findByPk(id, { include: ['author', 'likers', 'replies'] }),
+  findByPost: (postId) => Comment.findAll({
+    where: { postId, parentCommentId: null },
+    include: [
+      { model: User, as: 'author', attributes: ['id', 'firstName', 'lastName', 'username'] },
+      { model: Comment, as: 'replies', include: [{ model: User, as: 'author', attributes: ['id', 'firstName', 'lastName', 'username'] }] },
+      { model: User, as: 'likers', attributes: ['id'] }
+    ],
+    order: [['createdAt', 'DESC'], ['replies', 'createdAt', 'DESC']]
+  }),
+  update: (id, data) => Comment.update(data, { where: { id }, returning: true }),
+  delete: (id) => Comment.destroy({ where: { id } }),
+  addLike: async (commentId, userId) => {
+    const comment = await Comment.findByPk(commentId);
+    if (comment) {
+      await comment.addLiker(userId);
+    }
+    return Comment.findByPk(commentId, { include: ['author', 'likers'] });
+  },
+  removeLike: async (commentId, userId) => {
+    const comment = await Comment.findByPk(commentId);
+    if (comment) {
+      await comment.removeLiker(userId);
+    }
+    return Comment.findByPk(commentId, { include: ['author', 'likers'] });
+  }
+};
+
+export { User, Community, Post, Comment, sequelize };

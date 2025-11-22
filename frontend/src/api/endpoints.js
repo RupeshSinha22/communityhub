@@ -33,3 +33,14 @@ export const postAPI = {
   like: (id) => apiClient.post(`/posts/${id}/like`),
   unlike: (id) => apiClient.delete(`/posts/${id}/like`),
 };
+
+export const commentAPI = {
+  create: (data) => apiClient.post('/comments', data),
+  getByPost: (postId) => apiClient.get(`/comments/post/${postId}`),
+  getById: (id) => apiClient.get(`/comments/${id}`),
+  update: (id, data) => apiClient.patch(`/comments/${id}`, data),
+  delete: (id) => apiClient.delete(`/comments/${id}`),
+  like: (id) => apiClient.post(`/comments/${id}/like`),
+  unlike: (id) => apiClient.delete(`/comments/${id}/like`),
+};
+
